@@ -262,4 +262,40 @@ describe("Keyboard Shortcuts", () => {
       expect(codeblockContent).to.equal(text);
     },
   ).timeout(DEFAULT_TIMEOUT.XL);
+
+  it("Should include highlighted code as chat input when CMD+L is pressed before GUI is opened", async () => {
+    // Type some code in the editor
+    const testCode = `function hello() {\n  console.log("Hello World");\n}`;
+    await editor.setText(testCode);
+    
+    // Select/highlight the code
+    await editor.driver().executeScript(`
+      const editor = document.querySelector('.monaco-editor .view-lines');
+      if (editor) {
+        const range = document.createRange();
+        const lines = editor.querySelectorAll('.view-line');
+        if (lines.length >= 2) {
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          range.setStart(lines[0].firstChild, 0);
+          range.setEnd(lines[1].firstChild, lines[1].textContent.length);
+          selection.addRange(range);
+        }
+      }
+    `);
+    
+    // Press CMD+L to open Continue GUI with selection
+    await driver.executeHotkey("l", KeyMeta CMD);
+    
+    // Switch to Continue GUI
+    ({ view } = await GUIActions.switchToReactIframe());
+    
+    // Verify the highlighted code is in the input
+    const chatInput = await TestUtils.waitForSuccess(async () => {
+      return GUISelectors.getMessageInputFieldAtIndex(view, 0);
+    });
+    
+    const inputText = await chatInput.getText();
+    expect(inputText).to.include("console.log");
+  }).timeout(DEFAULT_TIMEOUT.XL);
 });
